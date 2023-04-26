@@ -1,5 +1,5 @@
-name: 'Setup Kustomize'
-description: 'Setup Kustomize and add it to the PATH'
+name: 'Install Kustomize'
+description: 'Install Kustomize and add it to the $PATH'
 inputs:
   kustomize-version:
     description: 'The kustomize version to download (if necessary) and use'
