@@ -1,0 +1,9 @@
+name: 'Setup Kustomize'
+description: 'Setup Kustomize and add it to the PATH'
+inputs:
+  kustomize-version:
+    description: 'The kustomize version to download (if necessary) and use'
+runs:
+  using: 'composite'
+  - run: install.sh
+    shell: bash ${{ inputs.kustomize-version }}
