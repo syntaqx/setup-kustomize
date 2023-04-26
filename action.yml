@@ -9,7 +9,7 @@ runs:
   steps:
   - run: curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
     shell: bash
-  - run: ./install_kustomize.sh ${{ kustomize-version }}
+  - run: ./install_kustomize.sh ${{ inputs.kustomize-version }}
     shell: bash
   - run: mv kustomize /usr/local/bin/kustomize && chmod +x /usr/local/bin/kustomize
     shell: bash
