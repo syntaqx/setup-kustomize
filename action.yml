@@ -9,9 +9,9 @@ runs:
   steps:
   - run: curl -O "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
     shell: bash
-  - run: bash ./install_kustomize.sh ${{ inputs.kustomize-version }}
+  - run: bash ./install_kustomize.sh ${{ inputs.kustomize-version }} /tmp
     shell: bash
-  - run: mv kustomize /usr/local/bin/kustomize && chmod +x /usr/local/bin/kustomize
+  - run: sudo mv /tmp/kustomize /usr/local/bin/kustomize && chmod +x /usr/local/bin/kustomize
     shell: bash
   - run: rm -f ./install_kustomize.sh
     shell: bash
