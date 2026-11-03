@@ -84,8 +84,12 @@ jobs:
             [[ "$VERSION" == "${REQUESTED#v}" ]]
           fi
           # Both the reported binary and the one on PATH (ahead of any preinstalled kustomize).
-          "$BINARY" version | tee /dev/stderr | grep -F "v$VERSION"
-          kustomize version | grep -F "v$VERSION"
+          from_output="$("$BINARY" version)"
+          from_path="$(kustomize version)"
+          echo "output: $from_output"
+          echo "PATH:   $from_path"
+          grep -qF "v$VERSION" <<<"$from_output"
+          grep -qF "v$VERSION" <<<"$from_path"
 
       - name: Install again (tool cache)
         id: cached
