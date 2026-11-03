@@ -1,17 +1,33 @@
-name: 'Install Kustomize'
-description: 'Install Kustomize and add it to the $PATH'
+name: 'Setup Kustomize'
+description: 'Install a specific or the latest version of kustomize, verify its checksum, cache it and add it to the PATH'
+author: 'syntaqx'
+branding:
+  icon: 'layers'
+  color: 'blue'
+
 inputs:
   kustomize-version:
-    description: 'The kustomize version to download (if necessary) and use'
+    description: >-
+      The kustomize version to install: "latest", an exact version ("5.4.1" or "v5.4.1"),
+      or a semver range ("5", "5.4", "^5.3.0"). Ranges resolve to the newest matching release.
     required: false
+    default: 'latest'
+  token:
+    description: >-
+      Token used to query the kustomize releases on api.github.com, so lookups are not
+      subject to the low unauthenticated rate limit. Defaults to the workflow token on
+      github.com and to no token on GitHub Enterprise Server.
+    required: false
+    default: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+
+outputs:
+  version:
+    description: 'The installed kustomize version, without a leading "v" (for example "5.4.1")'
+  path:
+    description: 'Absolute path to the installed kustomize binary'
+  cache-hit:
+    description: 'Whether kustomize was already present in the runner tool cache ("true" or "false")'
+
 runs:
-  using: 'composite'
-  steps:
-  - run: curl -O "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
-    shell: bash
-  - run: bash ./install_kustomize.sh ${{ inputs.kustomize-version }} /tmp
-    shell: bash
-  - run: sudo mv /tmp/kustomize /usr/local/bin/kustomize && chmod +x /usr/local/bin/kustomize
-    shell: bash
-  - run: rm -f ./install_kustomize.sh
-    shell: bash
+  using: 'node24'
+  main: 'dist/index.js'

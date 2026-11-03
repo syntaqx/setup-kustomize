@@ -1,0 +1,4 @@
+node_modules/
+coverage/
+# dist/ is built and committed only on release tags (see .github/workflows/release.yml)
+dist/
