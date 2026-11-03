@@ -4,6 +4,11 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      # Keep Node types on the major version the action runs on (runs.using in action.yml).
+      # Bump this together with the runtime.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       npm:
         patterns: ['*']
