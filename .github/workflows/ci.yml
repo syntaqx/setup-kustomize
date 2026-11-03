@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly run against the newest kustomize release, so a change in how kustomize publishes
+  # releases is caught (and emailed to you) before users hit it.
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run all
+
+  integration:
+    name: ${{ matrix.os }} / ${{ matrix.version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-latest
+          - macos-15-intel
+          - windows-latest
+          - windows-11-arm
+        version: [latest]
+        include:
+          # Ranges, exact pins, and the older release layouts (Windows tar.gz, v3.2.x bare binaries).
+          - { os: ubuntu-latest, version: '5' }
+          - { os: ubuntu-latest, version: 'v5.0.1' }
+          - { os: ubuntu-latest, version: '4.5.7' }
+          - { os: ubuntu-latest, version: '3.2.3' }
+          - { os: windows-latest, version: '4.5.7' }
+          - { os: windows-latest, version: '3.2.3' }
+          - { os: macos-latest, version: '5.1.1' } # no darwin/arm64 build: amd64 fallback
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Install kustomize
+        id: kustomize
+        uses: ./
+        with:
+          kustomize-version: ${{ matrix.version }}
+
+      - name: Verify install
+        shell: bash
+        env:
+          REQUESTED: ${{ matrix.version }}
+          VERSION: ${{ steps.kustomize.outputs.version }}
+          BINARY: ${{ steps.kustomize.outputs.path }}
+          CACHE_HIT: ${{ steps.kustomize.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          echo "version=$VERSION path=$BINARY cache-hit=$CACHE_HIT"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$CACHE_HIT" == false ]]
+          if [[ "$REQUESTED" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            [[ "$VERSION" == "${REQUESTED#v}" ]]
+          fi
+          # Both the reported binary and the one on PATH (ahead of any preinstalled kustomize).
+          "$BINARY" version | tee /dev/stderr | grep -F "v$VERSION"
+          kustomize version | grep -F "v$VERSION"
+
+      - name: Install again (tool cache)
+        id: cached
+        uses: ./
+        with:
+          kustomize-version: ${{ steps.kustomize.outputs.version }}
+
+      - name: Verify tool cache was used
+        shell: bash
+        run: test "${{ steps.cached.outputs.cache-hit }}" = true

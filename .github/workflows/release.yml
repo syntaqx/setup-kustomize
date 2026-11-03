@@ -1,0 +1,67 @@
+name: Release
+
+# Builds dist/ and publishes it on a release tag. dist/ is never committed to main, so
+# dependency updates don't need a rebuild commit; it only exists on the tagged release commits.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the "v" (for example 2.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Invalid version: $VERSION"; exit 1; }
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run all
+
+      - name: Smoke test the built action
+        uses: ./
+      - run: kustomize version
+
+      - name: Tag and publish
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          major="v${VERSION%%.*}"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Tag $tag already exists"; exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git add -f dist
+          git commit -m "Release $tag"
+          git tag -a "$tag" -m "Release $tag"
+          git tag -fa "$major" -m "Release $tag"
+          git push origin "$tag"
+          git push -f origin "$major"
+
+          gh release create "$tag" --verify-tag --generate-notes --title "$tag"
